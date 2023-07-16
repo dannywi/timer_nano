@@ -22,6 +22,11 @@ enum class USER_INPUT {
   NONE,
 };
 
+enum class ACT_STATUS {
+  OFF,
+  ON,
+};
+
 // todo: split in/out, to make in const
 struct Context {
   struct in_ {
@@ -32,6 +37,7 @@ struct Context {
     const char* lines[3];
     uint8_t num_lines{0};
     bool update_display{false};
+    ACT_STATUS act_status{ACT_STATUS::OFF};
   } out;
 };
 

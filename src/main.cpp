@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 #include "act_sleep.hpp"
+#include "act_timer.hpp"
 #include "definitions.hpp"
 #include "display.hpp"
 #include "mode_selector.hpp"
@@ -44,13 +45,15 @@ void setup() {
 }
 
 void loop() {
-  process_LED<13, 500>();
-  process_LED<5, 1000>();
+  process_LED<13, 1000>();
+  process_LED<5, 2000>();
 
-  bool update_display = false;
-
+  // Decide mode from user input (or the lack of it)
   tm::USER_INPUT user_input = tm::get_user_input(millis());
-  tm::MODE tgt_mode = tm::select_mode(user_input, tm::curr_mode);
+  tm::curr_mode = tm::select_mode(user_input, tm::curr_mode);
+
+  tm::context.in.millis = millis();
+  tm::context.in.user_input = user_input;
   tm::context.out.update_display = false;
 
   // static unsigned long last_wake = 0;
@@ -58,49 +61,26 @@ void loop() {
   //   Serial.print(millis());
   //   Serial.print(" ");
   //   Serial.print("mode ");
-  //   Serial.println((int)tgt_mode);
+  //   Serial.println((int)tm::curr_mode);
   //   last_wake = millis();
   // }
 
-  if (tgt_mode == tm::MODE::SLEEP) {
-    tm::context.in.millis = millis();
-    tm::context.in.user_input = user_input;
+  // Execute the mode's action taker
+  if (tm::curr_mode == tm::MODE::SLEEP) {
     tm::sleep::act(tm::context);
-  } else {
-    if (user_input != tm::USER_INPUT::NONE) { update_display = true; }
-
-    if (user_input == tm::USER_INPUT::KNOB_INCREASE) {
-      counter += 1;
-      currDir = "INCR";
-    } else if (user_input == tm::USER_INPUT::KNOB_DECREASE) {
-      counter -= 1;
-      currDir = "DECR";
-    }
-
-    if (update_display) {
-      // static const char* lines[2];
-      currCnt = String("VAL: ") + String(counter);
-      tm::context.out.lines[0] = currCnt.c_str();
-      tm::context.out.lines[1] = currDir.c_str();
-      tm::context.out.num_lines = 2;
-      tm::context.out.update_display = true;
-    }
+  } else if (tm::curr_mode == tm::MODE::TIMER) {
+    tm::timer::act(tm::context);
   }
 
+  // Post processings
   if (tm::context.out.update_display) { tm::update_display(tm::context.out.lines, tm::context.out.num_lines); }
+  tm::curr_mode = tm::select_mode(tm::context.out.act_status, tm::curr_mode);
 
   // help debounce reading
   delay(5);
 }
 
 /* Timer TODO
-- move rotary to lib
-  - design the API
-- connect display
-  - design the display
-- add thermometer to the display
-  - display when timer is off
-
 SPEC:
 - Mode:
   - Timer:
@@ -128,19 +108,40 @@ SPEC:
   - timer
 
 TODO:
+DONE - add another select_mode for post act
+- Sleep
+  DONE - add out param: processing (always DONE)
+  - add curr 12h clock as input
+
 - Create Timer
+  DONE - create a timer counter, and a start time
+  DONE - if it's zero because of incr/decr, UNSET
+  - when called
+    DONE - compare against last called
+      DONE - if 1000 ms passed, or countdown updated, update display
+      - if countdown zero (without user input), sound the alarm! and then UNSET
+  CXL - immediately OFF - if it's UNSET and time from last user input > 5 secs, go back to sleep
+  DONE - output:
+    - status: PROCESSING or DONE
+    - lines to print
+  - account for rolling over
 
+- create a Bell
+  - bell::setup + bell::fire + bell::process (this gets called on every iteration)
+  - Timer can call fire
+  - has its own counter when to start / stop the bell
 
-- action: timer
-  - on_user_input
-  - process -> display, return MODE?
+- create a clock setter
+  - output:
+    - status: PROCESSING or DONE
+    - lines to print
+    -
+  - input: pointer to current 12h clock (can update!)
 
-- action: sleep
-  - on_user_input: assert false! shouldn't come here
-  - process -> display, return MODE?
+- add thermometer to sleep mode (should be transparent to main, only changing the output lines)
 
-- action: clock set
-  - on_user_input: button -> move cursor, incr/decr: adjust
-  - process -> display (blink target), return MODE?
-
+OTHERS:
+- clean mode to act function mapping
+- clean input/output context, if possible make input const
+- go through all the main vars that gets mutated inside the actions ...
 */
