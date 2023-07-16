@@ -1,7 +1,10 @@
 #include <Arduino.h>
+
+#include "act_sleep.hpp"
 #include "definitions.hpp"
-#include "user_input.hpp"
 #include "display.hpp"
+#include "mode_selector.hpp"
+#include "user_input.hpp"
 
 // *** temporary ***
 template <int PIN, unsigned long INTERVAL>
@@ -22,15 +25,19 @@ void process_LED() {
 
 int counter = 0;
 
+String currCnt = "";
 String currDir = "";
 
 namespace tm {
-MODE g_curr_mode{MODE::SLEEP};
-}
+MODE curr_mode{MODE::SLEEP};
+
+Context context;
+}  // namespace tm
 
 void setup() {
   pinMode(13, OUTPUT);
   pinMode(5, OUTPUT);
+  // Serial.begin(9600);
 
   tm::setup_user_input();
   tm::setup_display();
@@ -43,26 +50,44 @@ void loop() {
   bool update_display = false;
 
   tm::USER_INPUT user_input = tm::get_user_input(millis());
-  if (user_input != tm::USER_INPUT::NONE) {
-    update_display = true;
+  tm::MODE tgt_mode = tm::select_mode(user_input, tm::curr_mode);
+  tm::context.out.update_display = false;
+
+  // static unsigned long last_wake = 0;
+  // if (last_wake + 1000 < millis()) {
+  //   Serial.print(millis());
+  //   Serial.print(" ");
+  //   Serial.print("mode ");
+  //   Serial.println((int)tgt_mode);
+  //   last_wake = millis();
+  // }
+
+  if (tgt_mode == tm::MODE::SLEEP) {
+    tm::context.in.millis = millis();
+    tm::context.in.user_input = user_input;
+    tm::sleep::act(tm::context);
+  } else {
+    if (user_input != tm::USER_INPUT::NONE) { update_display = true; }
+
+    if (user_input == tm::USER_INPUT::KNOB_INCREASE) {
+      counter += 1;
+      currDir = "INCR";
+    } else if (user_input == tm::USER_INPUT::KNOB_DECREASE) {
+      counter -= 1;
+      currDir = "DECR";
+    }
+
+    if (update_display) {
+      // static const char* lines[2];
+      currCnt = String("VAL: ") + String(counter);
+      tm::context.out.lines[0] = currCnt.c_str();
+      tm::context.out.lines[1] = currDir.c_str();
+      tm::context.out.num_lines = 2;
+      tm::context.out.update_display = true;
+    }
   }
 
-  if (user_input == tm::USER_INPUT::KNOB_INCREASE) {
-    counter += 1;
-    currDir = "INCR";
-  } else if(user_input == tm::USER_INPUT::KNOB_DECREASE) {
-    counter -= 1;
-    currDir = "DECR";
-  }
-
-  if (update_display) {
-    static const char* lines[2];
-    String a = "VAL: ";
-    a = a + String(counter);
-    lines[0] = a.c_str();
-    lines[1] = currDir.c_str();
-    tm::update_display(lines, 2);
-  }
+  if (tm::context.out.update_display) { tm::update_display(tm::context.out.lines, tm::context.out.num_lines); }
 
   // help debounce reading
   delay(5);
@@ -103,19 +128,7 @@ SPEC:
   - timer
 
 TODO:
-DONE - create select_mode func
-DONE - add var mode in main
-DONE - set curr mode as sleep in setup
-- put in loop()
-
-DONE - make user_input module - get_user_input
-DONE - in loop(), call this and pass result to select_mode
-
-DONE - refactor display
-- create sleep (assumes it starts at 9:00)
-  - update first line (clock)
-- call from main (somehow map to the action)
-
+- Create Timer
 
 
 - action: timer

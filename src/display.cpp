@@ -7,8 +7,8 @@ namespace tm {
 U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8;
 
 const char* greet[] = {
-  "G'DAY MATE!",
-  "NICE DAY TODAY!",
+    "G'DAY MATE!",
+    "NICE DAY TODAY!",
 };
 constexpr uint8_t greet_size = sizeof(greet) / sizeof(char*);
 
@@ -24,9 +24,7 @@ void setup_display() {
 void update_display(const char* lines[], uint8_t num_lines) {
   u8x8.clearDisplay();
   uint8_t limit = min(num_lines, MAX_LINES);
-  for(uint8_t i = 0; i < limit; ++i) {
-    u8x8.drawString(0, i, lines[i]);
-  }
+  for (uint8_t i = 0; i < limit; ++i) { u8x8.drawString(0, i, lines[i]); }
 }
 
 }  // namespace tm

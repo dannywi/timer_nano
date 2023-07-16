@@ -22,4 +22,17 @@ enum class USER_INPUT {
   NONE,
 };
 
+// todo: split in/out, to make in const
+struct Context {
+  struct in_ {
+    USER_INPUT user_input;
+    millis_t millis;
+  } in;
+  struct out_ {
+    const char* lines[3];
+    uint8_t num_lines{0};
+    bool update_display{false};
+  } out;
+};
+
 }  // namespace tm
