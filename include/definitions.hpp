@@ -6,6 +6,8 @@ using millis_t = unsigned long;
 using int16_t = int;
 using uint16_t = unsigned int;
 
+using uint8_t = unsigned char;
+
 namespace tm {
 enum class MODE {
   SLEEP,

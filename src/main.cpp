@@ -1,7 +1,7 @@
 #include <Arduino.h>
-#include <U8x8lib.h>
 #include "definitions.hpp"
 #include "user_input.hpp"
+#include "display.hpp"
 
 // *** temporary ***
 template <int PIN, unsigned long INTERVAL>
@@ -24,9 +24,6 @@ int counter = 0;
 
 String currDir = "";
 
-// **** DISPLAY ****
-U8X8_SSD1306_128X32_UNIVISION_HW_I2C u8x8;
-
 namespace tm {
 MODE g_curr_mode{MODE::SLEEP};
 }
@@ -36,10 +33,7 @@ void setup() {
   pinMode(5, OUTPUT);
 
   tm::setup_user_input();
-
-  u8x8.begin();
-  // github.com/olikraus/u8g2/wiki/fntlist8x8
-  u8x8.setFont(u8x8_font_victoriabold8_u);
+  tm::setup_display();
 }
 
 void loop() {
@@ -52,6 +46,7 @@ void loop() {
   if (user_input != tm::USER_INPUT::NONE) {
     update_display = true;
   }
+
   if (user_input == tm::USER_INPUT::KNOB_INCREASE) {
     counter += 1;
     currDir = "INCR";
@@ -61,11 +56,12 @@ void loop() {
   }
 
   if (update_display) {
-    u8x8.clearDisplay();
+    static const char* lines[2];
     String a = "VAL: ";
     a = a + String(counter);
-    u8x8.drawString(0,  1, a.c_str());
-    u8x8.drawString(0,  2, currDir.c_str());
+    lines[0] = a.c_str();
+    lines[1] = currDir.c_str();
+    tm::update_display(lines, 2);
   }
 
   // help debounce reading
@@ -114,6 +110,13 @@ DONE - set curr mode as sleep in setup
 
 DONE - make user_input module - get_user_input
 DONE - in loop(), call this and pass result to select_mode
+
+DONE - refactor display
+- create sleep (assumes it starts at 9:00)
+  - update first line (clock)
+- call from main (somehow map to the action)
+
+
 
 - action: timer
   - on_user_input
